@@ -22,6 +22,11 @@ import {
   clearAppData,
   playChime
 } from './services/storage';
+import {
+  checkSupabaseStatus,
+  syncAppDataToSupabase,
+  SupabaseStatusResult,
+} from './services/supabase';
 
 // Modals & Layout
 import { Header } from './components/Header';
@@ -30,6 +35,7 @@ import { ToastContainer, ToastMessage } from './components/Toast';
 import { ConfirmModal } from './components/ConfirmModal';
 import { DataManagementModal } from './components/DataManagementModal';
 import { QuickSearchModal } from './components/QuickSearchModal';
+import { SupabaseModal } from './components/SupabaseModal';
 
 // Views
 import { OverviewView } from './components/OverviewView';
@@ -72,6 +78,55 @@ export default function App() {
   // Global Dialogs
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('supabase_autosync_enabled') === 'true';
+  });
+  const [supabaseStatus, setSupabaseStatus] = useState<SupabaseStatusResult>({
+    status: 'checking',
+    message: 'Đang kiểm tra kết nối...',
+    hasWorkspaceTable: false,
+    hasRelationalTables: false,
+  });
+
+  // Check Supabase status on load
+  const refreshSupabaseStatus = useCallback(async () => {
+    try {
+      const res = await checkSupabaseStatus();
+      setSupabaseStatus(res);
+    } catch {
+      setSupabaseStatus({
+        status: 'error',
+        message: 'Lỗi mạng khi kết nối Supabase',
+        hasWorkspaceTable: false,
+        hasRelationalTables: false,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshSupabaseStatus();
+  }, [refreshSupabaseStatus]);
+
+  // Debounced auto-sync to Supabase if enabled and ready
+  useEffect(() => {
+    if (!autoSyncEnabled || supabaseStatus.status !== 'ready') return;
+    const timer = setTimeout(async () => {
+      await syncAppDataToSupabase(data);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [data, autoSyncEnabled, supabaseStatus.status]);
+
+  const handleToggleAutoSync = () => {
+    const nextVal = !autoSyncEnabled;
+    setAutoSyncEnabled(nextVal);
+    localStorage.setItem('supabase_autosync_enabled', String(nextVal));
+    notify(
+      'info',
+      nextVal ? 'Đã bật tự động đồng bộ Supabase' : 'Đã tắt tự động đồng bộ Supabase',
+      nextVal ? 'Dữ liệu sẽ được lưu tự động lên đám mây.' : 'Thầy có thể bấm đồng bộ thủ công khi cần.'
+    );
+  };
 
   // Synchronize state with LocalStorage whenever data changes
   useEffect(() => {
@@ -636,6 +691,8 @@ export default function App() {
         data={data}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenDataModal={() => setIsDataModalOpen(true)}
+        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+        supabaseStatus={supabaseStatus}
         onToggleSound={handleToggleSound}
         onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
         isSidebarOpen={isMobileSidebarOpen}
@@ -692,7 +749,23 @@ export default function App() {
         }}
         onResetSample={handleResetData}
         onClearData={handleClearData}
+        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         onNotify={notify}
+      />
+
+      {/* Supabase Cloud Sync Modal */}
+      <SupabaseModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+        data={data}
+        onUpdateData={(newData) => {
+          setData(newData);
+        }}
+        autoSyncEnabled={autoSyncEnabled}
+        onToggleAutoSync={handleToggleAutoSync}
+        onNotify={notify}
+        statusResult={supabaseStatus}
+        onRefreshStatus={refreshSupabaseStatus}
       />
 
       {/* Global Quick Search Modal (Ctrl + K) */}

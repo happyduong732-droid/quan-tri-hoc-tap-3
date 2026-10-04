@@ -1,11 +1,14 @@
 import React from 'react';
-import { Calendar, Search, Database, Volume2, VolumeX, Menu, BookMarked } from 'lucide-react';
+import { Calendar, Search, Database, Volume2, VolumeX, Menu, BookMarked, Cloud } from 'lucide-react';
 import { AppData } from '../types';
+import { SupabaseStatusResult } from '../services/supabase';
 
 interface HeaderProps {
   data: AppData;
   onOpenSearch: () => void;
   onOpenDataModal: () => void;
+  onOpenSupabaseModal: () => void;
+  supabaseStatus: SupabaseStatusResult;
   onToggleSound: () => void;
   onToggleMobileSidebar: () => void;
   isSidebarOpen: boolean;
@@ -15,6 +18,8 @@ export const Header: React.FC<HeaderProps> = ({
   data,
   onOpenSearch,
   onOpenDataModal,
+  onOpenSupabaseModal,
+  supabaseStatus,
   onToggleSound,
   onToggleMobileSidebar,
 }) => {
@@ -60,36 +65,65 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Right: Quick Search + Date + Tool Actions */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             {/* Quick Search Bar trigger */}
             <button
               id="quick-search-trigger"
               type="button"
               onClick={onOpenSearch}
-              className="hidden md:flex items-center gap-3 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-500 hover:text-slate-800 text-sm border border-slate-200/80 transition-all w-60 lg:w-72"
+              className="hidden xl:flex items-center gap-3 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-500 hover:text-slate-800 text-sm border border-slate-200/80 transition-all w-52"
               title="Tìm kiếm nhanh (Ctrl + K)"
             >
               <Search className="w-4 h-4 text-blue-600 shrink-0" />
-              <span className="flex-1 text-left text-xs truncate">Tìm học sinh, lớp, bài học...</span>
+              <span className="flex-1 text-left text-xs truncate">Tìm kiếm nhanh...</span>
               <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 bg-white rounded-md border border-slate-300 shadow-2xs">
-                Tìm kiếm
+                Ctrl+K
               </kbd>
             </button>
 
             <button
               type="button"
               onClick={onOpenSearch}
-              className="md:hidden p-2.5 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 transition-colors"
+              className="xl:hidden p-2.5 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 transition-colors"
               title="Tìm kiếm nhanh"
             >
               <Search className="w-5 h-5" />
             </button>
 
             {/* Date Display Pill */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50/70 border border-blue-100 text-blue-900 text-xs font-semibold">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50/70 border border-blue-100 text-blue-900 text-xs font-semibold">
               <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
               <span>{formattedDate}</span>
             </div>
+
+            {/* Supabase Cloud Sync Status Button */}
+            <button
+              id="header-supabase-btn"
+              type="button"
+              onClick={onOpenSupabaseModal}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all border shadow-2xs active:scale-95 ${
+                supabaseStatus.status === 'ready'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                  : supabaseStatus.status === 'need_schema'
+                  ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+              title="Cấu hình & Đồng bộ Đám mây Supabase"
+            >
+              <Cloud className={`w-4 h-4 ${
+                supabaseStatus.status === 'ready' ? 'text-emerald-600' : 'text-teal-600'
+              }`} />
+              <div className="flex items-center gap-1.5">
+                <span className="hidden sm:inline font-bold">Supabase</span>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${
+                  supabaseStatus.status === 'ready'
+                    ? 'bg-emerald-500 animate-pulse'
+                    : supabaseStatus.status === 'need_schema'
+                    ? 'bg-amber-500'
+                    : 'bg-slate-400'
+                }`} />
+              </div>
+            </button>
 
             {/* Sound Toggle */}
             <button
@@ -111,11 +145,11 @@ export const Header: React.FC<HeaderProps> = ({
               id="header-data-manager-btn"
               type="button"
               onClick={onOpenDataModal}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-all hover:border-slate-300 active:scale-95"
-              title="Quản lý sao lưu & Dữ liệu mẫu"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-all hover:border-slate-300 active:scale-95"
+              title="Quản lý sao lưu tệp JSON & Dữ liệu mẫu"
             >
               <Database className="w-4 h-4 text-blue-600 shrink-0" />
-              <span className="hidden sm:inline">Sao lưu dữ liệu</span>
+              <span className="hidden md:inline">Sao lưu tệp</span>
             </button>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Download, Upload, RotateCcw, Trash2, Volume2, VolumeX, X, Database, ShieldCheck } from 'lucide-react';
+import { Download, Upload, RotateCcw, Trash2, Volume2, VolumeX, X, Database, ShieldCheck, Cloud } from 'lucide-react';
 import { AppData } from '../types';
 import { exportAppDataToFile, importAppDataFromFile } from '../services/storage';
 
@@ -10,6 +10,7 @@ interface DataManagementModalProps {
   onUpdateData: (newData: AppData) => void;
   onResetSample: () => void;
   onClearData: () => void;
+  onOpenSupabaseModal: () => void;
   onNotify: (type: 'success' | 'warning' | 'error' | 'info', title: string, desc?: string) => void;
 }
 
@@ -20,6 +21,7 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
   onUpdateData,
   onResetSample,
   onClearData,
+  onOpenSupabaseModal,
   onNotify,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,7 +128,32 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
 
           {/* Actions Grid */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Thao tác dữ liệu</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Đồng bộ đám mây & Tệp tin</h4>
+
+            {/* Supabase Cloud Sync Button */}
+            <button
+              id="open-supabase-from-data-modal-btn"
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenSupabaseModal();
+              }}
+              className="w-full flex items-center justify-between p-3.5 rounded-xl border border-emerald-300 bg-emerald-50/60 hover:bg-emerald-100/70 text-left transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-emerald-600 text-white group-hover:scale-105 transition-transform shadow-xs">
+                  <Cloud className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-emerald-950">Đồng bộ Đám mây Supabase</span>
+                    <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-200/80 text-emerald-900 rounded">Khuyên dùng</span>
+                  </div>
+                  <p className="text-xs text-emerald-800/90">Lưu trữ trên cơ sở dữ liệu Supabase, không lo mất dữ liệu</p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-emerald-700 group-hover:translate-x-0.5 transition-transform">Mở bảng đồng bộ →</span>
+            </button>
 
             {/* Export */}
             <button
