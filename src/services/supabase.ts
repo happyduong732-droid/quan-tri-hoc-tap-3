@@ -6,6 +6,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { AppData, ClassItem, Student, Lesson, LearningTask, GradeEntry, StudentComment, ActivityLog } from '../types';
+import type { UserAccount } from './auth';
 
 // Lấy thông tin cấu hình từ biến môi trường
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://swhrpermczgbchpretry.supabase.co';
@@ -26,6 +27,7 @@ export interface SupabaseStatusResult {
   message: string;
   hasWorkspaceTable: boolean;
   hasRelationalTables: boolean;
+  hasUsersTable: boolean;
   tableDetails?: string;
 }
 
@@ -39,6 +41,7 @@ export async function checkSupabaseStatus(): Promise<SupabaseStatusResult> {
       message: 'Chưa cấu hình URL hoặc Anon Key của Supabase.',
       hasWorkspaceTable: false,
       hasRelationalTables: false,
+      hasUsersTable: false,
     };
   }
 
@@ -65,33 +68,47 @@ export async function checkSupabaseStatus(): Promise<SupabaseStatusResult> {
       hasStudents = true;
     }
 
-    if (hasWorkspace || hasStudents) {
+    // 3. Kiểm tra bảng app_users (Lưu trữ tên đăng nhập & tài khoản)
+    let hasUsers = false;
+    const { error: userError } = await supabase
+      .from('app_users')
+      .select('id')
+      .limit(1);
+
+    if (!userError) {
+      hasUsers = true;
+    }
+
+    if (hasWorkspace || hasStudents || hasUsers) {
       return {
         status: 'ready',
         message: 'Đã kết nối thành công với cơ sở dữ liệu Supabase!',
         hasWorkspaceTable: hasWorkspace,
         hasRelationalTables: hasStudents,
-        tableDetails: `Bảng Workspace: ${hasWorkspace ? 'Đã tạo' : 'Chưa tạo'} | Bảng Học sinh: ${hasStudents ? 'Đã tạo' : 'Chưa tạo'}`,
+        hasUsersTable: hasUsers,
+        tableDetails: `Bảng Tài khoản (app_users): ${hasUsers ? 'Đã tạo' : 'Chưa tạo'} | Bảng Workspace: ${hasWorkspace ? 'Đã tạo' : 'Chưa tạo'} | Bảng Học sinh: ${hasStudents ? 'Đã tạo' : 'Chưa tạo'}`,
       };
     }
 
-    // Nếu cả 2 bảng đều chưa tìm thấy trong schema cache
-    const errorCode = wsError?.code || stError?.code;
+    // Nếu các bảng đều chưa tìm thấy trong schema cache
+    const errorCode = wsError?.code || stError?.code || userError?.code;
     if (errorCode === 'PGRST205' || wsError?.message?.includes('schema cache')) {
       return {
         status: 'need_schema',
         message: 'Kết nối Supabase thành công nhưng chưa tạo bảng dữ liệu.',
         hasWorkspaceTable: false,
         hasRelationalTables: false,
-        tableDetails: 'Cần chạy mã lệnh SQL trong mục SQL Editor trên Supabase để tạo các bảng.',
+        hasUsersTable: false,
+        tableDetails: 'Cần chạy mã lệnh SQL trong mục SQL Editor trên Supabase để tạo các bảng (bao gồm app_users).',
       };
     }
 
     return {
       status: 'error',
-      message: wsError?.message || stError?.message || 'Không thể truy vấn cơ sở dữ liệu Supabase.',
+      message: wsError?.message || stError?.message || userError?.message || 'Không thể truy vấn cơ sở dữ liệu Supabase.',
       hasWorkspaceTable: false,
       hasRelationalTables: false,
+      hasUsersTable: false,
     };
   } catch (err) {
     return {
@@ -99,6 +116,7 @@ export async function checkSupabaseStatus(): Promise<SupabaseStatusResult> {
       message: err instanceof Error ? err.message : 'Lỗi kết nối mạng tới Supabase.',
       hasWorkspaceTable: false,
       hasRelationalTables: false,
+      hasUsersTable: false,
     };
   }
 }
@@ -429,6 +447,20 @@ export function getSupabaseSqlSchema(): string {
 -- Hướng dẫn: Mở Supabase Dashboard -> chọn SQL Editor -> New Query -> Dán và bấm RUN
 -- ================================================================
 
+-- 0. BẢNG TÀI KHOẢN NGƯỜI DÙNG / GIÁO VIÊN (LƯU TÊN ĐĂNG NHẬP & MẬT KHẨU BĂM)
+CREATE TABLE IF NOT EXISTS public.app_users (
+  id TEXT PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  full_name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'teacher',
+  subject TEXT DEFAULT 'Ngữ văn',
+  school TEXT DEFAULT 'THCS Phan Bội Châu',
+  avatar_color TEXT,
+  created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()),
+  last_login_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
 -- 1. Bảng đồng bộ nhanh toàn diện ứng dụng
 CREATE TABLE IF NOT EXISTS public.app_workspace (
   id TEXT PRIMARY KEY,
@@ -522,6 +554,7 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
 );
 
 -- BẬT ROW LEVEL SECURITY (RLS)
+ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_workspace ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
@@ -532,6 +565,9 @@ ALTER TABLE public.student_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 
 -- CẤP QUYỀN ĐỌC GHI CHO ANON KEY (FRONTEND)
+DROP POLICY IF EXISTS "Public access app_users" ON public.app_users;
+CREATE POLICY "Public access app_users" ON public.app_users FOR ALL USING (true) WITH CHECK (true);
+
 DROP POLICY IF EXISTS "Public access app_workspace" ON public.app_workspace;
 CREATE POLICY "Public access app_workspace" ON public.app_workspace FOR ALL USING (true) WITH CHECK (true);
 
@@ -602,6 +638,148 @@ export async function deleteStudentFromSupabase(studentId: string, updatedData: 
     ]);
   } catch (err) {
     console.warn('Lỗi khi xóa học sinh trên Supabase:', err);
+  }
+}
+
+/**
+ * Lưu 1 tài khoản người dùng lên Supabase (app_users)
+ */
+export async function saveUserToSupabase(user: UserAccount): Promise<{ success: boolean; message: string }> {
+  try {
+    const payload = {
+      id: user.id,
+      username: user.username.toLowerCase().trim(),
+      password_hash: user.passwordHash,
+      full_name: user.fullName,
+      role: user.role,
+      subject: user.subject,
+      school: user.school,
+      avatar_color: user.avatarColor || null,
+      created_at: user.createdAt,
+      last_login_at: user.lastLoginAt || new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from('app_users')
+      .upsert(payload, { onConflict: 'username' });
+
+    if (error) {
+      console.warn('Lỗi khi lưu tài khoản lên Supabase:', error.message);
+      return { success: false, message: error.message };
+    }
+
+    return { success: true, message: `Đã lưu tài khoản ${user.username} lên Supabase thành công.` };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, message: msg };
+  }
+}
+
+/**
+ * Tải toàn bộ danh sách tài khoản đã đăng ký từ Supabase
+ */
+export async function loadUsersFromSupabase(): Promise<{ success: boolean; data?: UserAccount[]; message?: string }> {
+  try {
+    const { data, error } = await supabase
+      .from('app_users')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      return { success: false, message: error.message };
+    }
+
+    if (!data || data.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    const users: UserAccount[] = data.map((row) => ({
+      id: row.id,
+      username: row.username,
+      passwordHash: row.password_hash,
+      fullName: row.full_name,
+      role: row.role as 'teacher' | 'admin' | 'assistant',
+      subject: row.subject || 'Ngữ văn',
+      school: row.school || 'THCS Phan Bội Châu',
+      avatarColor: row.avatar_color,
+      createdAt: row.created_at,
+      lastLoginAt: row.last_login_at,
+    }));
+
+    return { success: true, data: users };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, message: msg };
+  }
+}
+
+/**
+ * Tìm tài khoản theo tên đăng nhập trên Supabase (hỗ trợ đăng nhập chéo thiết bị)
+ */
+export async function findUserOnSupabase(username: string): Promise<UserAccount | null> {
+  try {
+    const { data, error } = await supabase
+      .from('app_users')
+      .select('*')
+      .eq('username', username.toLowerCase().trim())
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return {
+      id: data.id,
+      username: data.username,
+      passwordHash: data.password_hash,
+      fullName: data.full_name,
+      role: data.role as 'teacher' | 'admin' | 'assistant',
+      subject: data.subject || 'Ngữ văn',
+      school: data.school || 'THCS Phan Bội Châu',
+      avatarColor: data.avatar_color,
+      createdAt: data.created_at,
+      lastLoginAt: data.last_login_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Đồng bộ tất cả tài khoản cục bộ lên Supabase
+ */
+export async function syncAllUsersToSupabase(users: UserAccount[]): Promise<{ success: boolean; message: string; count: number }> {
+  try {
+    if (users.length === 0) {
+      return { success: true, message: 'Không có tài khoản nào cần đồng bộ.', count: 0 };
+    }
+
+    const payload = users.map((u) => ({
+      id: u.id,
+      username: u.username.toLowerCase().trim(),
+      password_hash: u.passwordHash,
+      full_name: u.fullName,
+      role: u.role,
+      subject: u.subject,
+      school: u.school,
+      avatar_color: u.avatarColor || null,
+      created_at: u.createdAt,
+      last_login_at: u.lastLoginAt || new Date().toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from('app_users')
+      .upsert(payload, { onConflict: 'username' });
+
+    if (error) {
+      return { success: false, message: error.message, count: 0 };
+    }
+
+    return { success: true, message: `Đã lưu ${users.length} tài khoản lên Supabase thành công!`, count: users.length };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, message: msg, count: 0 };
   }
 }
 

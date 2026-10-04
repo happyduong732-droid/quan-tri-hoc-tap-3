@@ -13,16 +13,20 @@ import {
   Code2,
   Check,
   Zap,
+  Users,
+  ShieldCheck,
 } from 'lucide-react';
 import { AppData } from '../types';
 import {
   checkSupabaseStatus,
   syncAppDataToSupabase,
   loadAppDataFromSupabase,
+  syncAllUsersToSupabase,
   getSupabaseSqlSchema,
   SUPABASE_URL,
   SupabaseStatusResult,
 } from '../services/supabase';
+import { getRegisteredUsers } from '../services/auth';
 
 interface SupabaseModalProps {
   isOpen: boolean;
@@ -49,6 +53,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
 }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
+  const [isSyncingUsers, setIsSyncingUsers] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
   const [showSqlPreview, setShowSqlPreview] = useState(false);
@@ -73,6 +78,19 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
     setCopiedSql(true);
     onNotify('success', 'Đã sao chép mã SQL!', 'Thầy hãy vào Supabase -> SQL Editor -> New Query -> Dán và bấm Run.');
     setTimeout(() => setCopiedSql(false), 3000);
+  };
+
+  const handleSyncUsers = async () => {
+    setIsSyncingUsers(true);
+    const users = getRegisteredUsers();
+    const res = await syncAllUsersToSupabase(users);
+    setIsSyncingUsers(false);
+    if (res.success) {
+      onNotify('success', 'Đồng bộ tài khoản thành công!', `Đã lưu ${res.count} tài khoản lên bảng app_users trên Supabase.`);
+      await onRefreshStatus();
+    } else {
+      onNotify('error', 'Lỗi đồng bộ tài khoản', res.message);
+    }
   };
 
   const handleSyncToSupabase = async () => {
@@ -330,7 +348,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
                   <Zap className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="font-bold text-sm text-slate-800">Tự động đồng bộ lên Supabase</span>
+                  <span className="font-bold text-sm text-slate-800">Tự động đồng bộ dữ liệu học tập</span>
                   <p className="text-xs text-slate-500">
                     Tự động lưu lên đám mây khi thầy thêm hoặc sửa đổi học sinh, điểm số, bài học
                   </p>
@@ -346,6 +364,39 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
                 }`}
               >
                 {autoSyncEnabled ? 'Đang Bật' : 'Đang Tắt'}
+              </button>
+            </div>
+
+            {/* Sync User Accounts to Supabase (app_users) */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-indigo-50/70 rounded-xl border border-indigo-200/80 mt-2">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700 shrink-0">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-indigo-950">Lưu trữ tài khoản trên Supabase</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      statusResult.hasUsersTable
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : 'bg-amber-100 text-amber-800 border border-amber-300'
+                    }`}>
+                      {statusResult.hasUsersTable ? 'Bảng app_users: Đã tạo' : 'Bảng app_users: Cần tạo mã SQL'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-indigo-800/80 mt-0.5">
+                    Lưu toàn bộ tên đăng nhập và mật khẩu băm lên bảng <code className="bg-indigo-100 px-1 rounded font-bold">app_users</code> để đăng nhập được từ bất kỳ máy nào.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleSyncUsers}
+                disabled={isSyncingUsers}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>{isSyncingUsers ? 'Đang lưu...' : 'Đẩy tài khoản lên Supabase'}</span>
               </button>
             </div>
 

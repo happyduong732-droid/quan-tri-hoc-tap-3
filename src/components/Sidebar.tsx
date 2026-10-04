@@ -9,14 +9,19 @@ import {
   TrendingUp,
   MessageSquareQuote,
   BarChart3,
-  X
+  X,
+  UserPlus,
+  Settings,
 } from 'lucide-react';
 import { NavTab, AppData } from '../types';
+import { UserAccount } from '../services/auth';
 
 interface SidebarProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   data: AppData;
+  currentUser: UserAccount | null;
+  onOpenAuthModal: (tab?: 'register' | 'login' | 'profile') => void;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
 }
@@ -25,6 +30,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   onSelectTab,
   data,
+  currentUser,
+  onOpenAuthModal,
   isOpenMobile,
   onCloseMobile,
 }) => {
@@ -138,15 +145,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </div>
 
-        {/* Bottom Profile Info Box */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50/70">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-800 font-bold text-sm flex items-center justify-center shrink-0 border border-blue-200">
-              DT
+        {/* Bottom Profile Info Box with Register & Switch Quick Actions */}
+        <div className="p-3.5 border-t border-slate-100 bg-slate-50/80">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-9 h-9 rounded-xl bg-linear-to-br ${
+                  currentUser?.avatarColor || 'from-blue-600 to-indigo-700'
+                } text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs`}
+              >
+                {currentUser ? currentUser.fullName.slice(0, 1).toUpperCase() : 'GV'}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-slate-800 truncate">
+                  {currentUser ? currentUser.fullName : 'Chưa đăng nhập'}
+                </p>
+                <p className="text-[11px] text-slate-500 truncate">
+                  {currentUser ? `@${currentUser.username} • ${currentUser.subject}` : 'Bấm để đăng ký tài khoản'}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-800 truncate">Thầy Dương Thành Tín</p>
-              <p className="text-[11px] text-slate-500 truncate">Ngữ văn • THCS Phan Bội Châu</p>
+
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => onOpenAuthModal('register')}
+                className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                title="Đăng ký tài khoản mới"
+              >
+                <UserPlus className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenAuthModal(currentUser ? 'profile' : 'login')}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 transition-colors"
+                title={currentUser ? 'Quản lý tài khoản' : 'Đăng nhập'}
+              >
+                <Settings className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>

@@ -39,6 +39,9 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { DataManagementModal } from './components/DataManagementModal';
 import { QuickSearchModal } from './components/QuickSearchModal';
 import { SupabaseModal } from './components/SupabaseModal';
+import { AuthModal, AuthModalTab } from './components/AuthModal';
+import { AuthScreen } from './components/AuthScreen';
+import { getCurrentUser, initializeAuth, UserAccount } from './services/auth';
 
 // Views
 import { OverviewView } from './components/OverviewView';
@@ -82,6 +85,32 @@ export default function App() {
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+
+  // Authentication & User Accounts State
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => getCurrentUser());
+  const [authModalState, setAuthModalState] = useState<{
+    isOpen: boolean;
+    defaultTab: AuthModalTab;
+  }>({
+    isOpen: false,
+    defaultTab: 'register',
+  });
+
+  // Khởi tạo tài khoản hệ thống khi mở app lần đầu
+  useEffect(() => {
+    initializeAuth().then(() => {
+      const active = getCurrentUser();
+      if (active) setCurrentUser(active);
+    });
+  }, []);
+
+  const handleOpenAuthModal = (tab: AuthModalTab = 'register') => {
+    setAuthModalState({
+      isOpen: true,
+      defaultTab: tab,
+    });
+  };
+
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(() => {
     return localStorage.getItem('supabase_autosync_enabled') !== 'false';
   });
@@ -90,6 +119,7 @@ export default function App() {
     message: 'Đang kiểm tra kết nối...',
     hasWorkspaceTable: false,
     hasRelationalTables: false,
+    hasUsersTable: false,
   });
 
   const hasInitializedFromSupabase = React.useRef(false);
@@ -119,6 +149,7 @@ export default function App() {
         message: 'Lỗi mạng khi kết nối Supabase',
         hasWorkspaceTable: false,
         hasRelationalTables: false,
+        hasUsersTable: false,
       });
     }
   }, []);
@@ -704,18 +735,46 @@ export default function App() {
         return <StatsView data={data} onNavigate={handleNavigate} />;
 
       default:
-        return <OverviewView data={data} onNavigate={handleNavigate} />;
+        return (
+          <OverviewView
+            data={data}
+            currentUser={currentUser}
+            onNavigate={handleNavigate}
+            onOpenAuthModal={handleOpenAuthModal}
+          />
+        );
     }
   };
+
+  // Màn hình Đăng nhập & Đăng ký xuất hiện trước khi người dùng truy cập giao diện chính
+  if (!currentUser) {
+    return (
+      <>
+        <AuthScreen
+          onLoginSuccess={(user) => {
+            setCurrentUser(user);
+          }}
+          notify={notify}
+        />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900 font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
       {/* Top Application Header */}
       <Header
         data={data}
+        currentUser={currentUser}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenDataModal={() => setIsDataModalOpen(true)}
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+        onOpenAuthModal={handleOpenAuthModal}
+        onLogout={() => {
+          setCurrentUser(null);
+          notify('info', 'Đã đăng xuất', 'Thầy/Cô đã đăng xuất. Bấm Đăng ký hoặc Đăng nhập để tiếp tục.');
+        }}
         supabaseStatus={supabaseStatus}
         onToggleSound={handleToggleSound}
         onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
@@ -733,6 +792,8 @@ export default function App() {
             setIsMobileSidebarOpen(false);
           }}
           data={data}
+          currentUser={currentUser}
+          onOpenAuthModal={handleOpenAuthModal}
           isOpenMobile={isMobileSidebarOpen}
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
@@ -798,6 +859,18 @@ export default function App() {
         onClose={() => setIsSearchOpen(false)}
         data={data}
         onNavigate={handleNavigate}
+      />
+
+      {/* Account Authentication & Registration Modal */}
+      <AuthModal
+        isOpen={authModalState.isOpen}
+        onClose={() => setAuthModalState((prev) => ({ ...prev, isOpen: false }))}
+        defaultTab={authModalState.defaultTab}
+        currentUser={currentUser}
+        onUserChange={(newUser) => {
+          setCurrentUser(newUser);
+        }}
+        notify={notify}
       />
     </div>
   );

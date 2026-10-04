@@ -11,16 +11,25 @@ import {
   Activity,
   ArrowRight,
   CalendarCheck,
-  Plus
+  Plus,
+  UserPlus,
 } from 'lucide-react';
 import { AppData, NavTab } from '../types';
+import { UserAccount } from '../services/auth';
 
 interface OverviewViewProps {
   data: AppData;
+  currentUser?: UserAccount | null;
   onNavigate: (tab: NavTab, filter?: string) => void;
+  onOpenAuthModal?: (tab?: 'register' | 'login' | 'profile') => void;
 }
 
-export const OverviewView: React.FC<OverviewViewProps> = ({ data, onNavigate }) => {
+export const OverviewView: React.FC<OverviewViewProps> = ({
+  data,
+  currentUser,
+  onNavigate,
+  onOpenAuthModal,
+}) => {
   // Compute Key Metrics
   const totalClasses = data.classes.length;
   const totalStudents = data.students.length;
@@ -84,18 +93,30 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ data, onNavigate }) 
   return (
     <div id="overview-view" className="space-y-8 animate-in fade-in duration-200">
       {/* Top Welcome & Context Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-white shadow-md">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-linear-to-r from-blue-700 via-blue-600 to-indigo-700 text-white shadow-md">
         <div>
           <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-            Chào Thầy Dương Thành Tín!
+            Chào {currentUser ? currentUser.fullName : 'Thầy Dương Thành Tín'}!
           </h2>
           <p className="text-blue-100 text-sm mt-1 max-w-2xl">
-            Bảng điều khiển môn Ngữ văn hôm nay đã sẵn sàng. Thầy có{' '}
+            Bảng điều khiển môn {currentUser?.subject || 'Ngữ văn'} hôm nay đã sẵn sàng. Thầy/Cô có{' '}
             <strong className="text-white font-bold">{ongoingLessons.length} bài học đang triển khai</strong> và{' '}
             <strong className="text-white font-bold">{pendingTasks.length} nhiệm vụ cần theo dõi</strong>.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-2">
+          {onOpenAuthModal && (
+            <button
+              id="overview-quick-register-btn"
+              type="button"
+              onClick={() => onOpenAuthModal('register')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs sm:text-sm font-semibold backdrop-blur-xs transition-colors border border-white/30 shadow-xs"
+              title="Đăng ký tài khoản người dùng mới"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Đăng ký tài khoản</span>
+            </button>
+          )}
           <button
             id="overview-quick-add-student"
             type="button"
