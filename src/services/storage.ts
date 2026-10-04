@@ -27,16 +27,39 @@ export function loadAppData(): AppData {
       return initialAppData;
     }
     const parsed = JSON.parse(raw) as Partial<AppData>;
-    return {
-      classes: parsed.classes || initialAppData.classes,
-      students: parsed.students || initialAppData.students,
-      lessons: parsed.lessons || initialAppData.lessons,
-      tasks: parsed.tasks || initialAppData.tasks,
-      grades: parsed.grades || initialAppData.grades,
-      comments: parsed.comments || initialAppData.comments,
-      activityLogs: parsed.activityLogs || initialAppData.activityLogs,
+
+    // Lọc bỏ triệt để lớp 6A1 (đã bị xóa) nếu còn sót trong bộ nhớ cache cũ
+    const rawClasses = Array.isArray(parsed.classes) ? parsed.classes : initialAppData.classes;
+    const cleanedClasses = rawClasses.filter((c) => c.id !== 'c-6a1' && c.name !== '6A1');
+    const cleanedStudents = (Array.isArray(parsed.students) ? parsed.students : initialAppData.students)
+      .filter((s) => s.classId !== 'c-6a1');
+    const cleanedLessons = (Array.isArray(parsed.lessons) ? parsed.lessons : initialAppData.lessons)
+      .filter((l) => l.classId !== 'c-6a1');
+    const cleanedTasks = (Array.isArray(parsed.tasks) ? parsed.tasks : initialAppData.tasks)
+      .filter((t) => t.classId !== 'c-6a1');
+    const cleanedGrades = (Array.isArray(parsed.grades) ? parsed.grades : initialAppData.grades)
+      .filter((g) => g.classId !== 'c-6a1');
+    const cleanedComments = (Array.isArray(parsed.comments) ? parsed.comments : initialAppData.comments)
+      .filter((cm) => cm.classId !== 'c-6a1');
+    const cleanedLogs = Array.isArray(parsed.activityLogs) ? parsed.activityLogs : initialAppData.activityLogs;
+
+    const result: AppData = {
+      classes: cleanedClasses,
+      students: cleanedStudents,
+      lessons: cleanedLessons,
+      tasks: cleanedTasks,
+      grades: cleanedGrades,
+      comments: cleanedComments,
+      activityLogs: cleanedLogs,
       soundEnabled: typeof parsed.soundEnabled === 'boolean' ? parsed.soundEnabled : false,
     };
+
+    // Tự động lưu lại bản dữ liệu sạch vào localStorage
+    if (rawClasses.length !== cleanedClasses.length) {
+      saveAppData(result);
+    }
+
+    return result;
   } catch (error) {
     console.error('Lỗi khi đọc dữ liệu từ localStorage:', error);
     return initialAppData;

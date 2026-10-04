@@ -137,6 +137,20 @@ export async function syncAppDataToSupabase(data: AppData): Promise<{ success: b
         await supabase.from('classes').upsert(classPayload, { onConflict: 'id' });
       }
 
+      // Dọn dẹp các lớp học trên Supabase không còn trong danh sách (đã bị xóa)
+      try {
+        const { data: dbClasses } = await supabase.from('classes').select('id');
+        if (dbClasses && dbClasses.length > 0) {
+          const currentClassIds = new Set(data.classes.map((c) => c.id));
+          const removedClassIds = dbClasses.map((r: any) => r.id).filter((id: string) => !currentClassIds.has(id));
+          if (removedClassIds.length > 0) {
+            await supabase.from('classes').delete().in('id', removedClassIds);
+          }
+        }
+      } catch {
+        // Bỏ qua nếu chưa hỗ trợ
+      }
+
       // Upsert students
       if (data.students.length > 0) {
         const studentPayload = data.students.map((s: Student) => ({
@@ -150,6 +164,20 @@ export async function syncAppDataToSupabase(data: AppData): Promise<{ success: b
           need_attention: !!s.needAttention,
         }));
         await supabase.from('students').upsert(studentPayload, { onConflict: 'id' });
+      }
+
+      // Dọn dẹp học sinh đã bị xóa
+      try {
+        const { data: dbStudents } = await supabase.from('students').select('id');
+        if (dbStudents && dbStudents.length > 0) {
+          const currentStudentIds = new Set(data.students.map((s) => s.id));
+          const removedStudentIds = dbStudents.map((r: any) => r.id).filter((id: string) => !currentStudentIds.has(id));
+          if (removedStudentIds.length > 0) {
+            await supabase.from('students').delete().in('id', removedStudentIds);
+          }
+        }
+      } catch {
+        // Bỏ qua nếu lỗi
       }
 
       // Upsert lessons
@@ -275,9 +303,19 @@ export async function loadAppDataFromSupabase(): Promise<{
     if (!wsError && wsData?.data) {
       const parsed = wsData.data as AppData;
       if (parsed.classes && parsed.students) {
+        // Lọc sạch 6A1 nếu còn lưu trong đám mây cũ
+        const cleaned: AppData = {
+          ...parsed,
+          classes: parsed.classes.filter((c) => c.id !== 'c-6a1' && c.name !== '6A1'),
+          students: (parsed.students || []).filter((s) => s.classId !== 'c-6a1'),
+          lessons: (parsed.lessons || []).filter((l) => l.classId !== 'c-6a1'),
+          tasks: (parsed.tasks || []).filter((t) => t.classId !== 'c-6a1'),
+          grades: (parsed.grades || []).filter((g) => g.classId !== 'c-6a1'),
+          comments: (parsed.comments || []).filter((cm) => cm.classId !== 'c-6a1'),
+        };
         return {
           success: true,
-          data: parsed,
+          data: cleaned,
           message: 'Đã tải thành công dữ liệu mới nhất từ Supabase!',
         };
       }
@@ -519,3 +557,51 @@ DROP POLICY IF EXISTS "Public access activity_logs" ON public.activity_logs;
 CREATE POLICY "Public access activity_logs" ON public.activity_logs FOR ALL USING (true) WITH CHECK (true);
 `;
 }
+
+/**
+ * Xóa lớp học và tất cả dữ liệu liên quan trực tiếp khỏi Supabase
+ */
+export async function deleteClassFromSupabase(classId: string, updatedData: AppData): Promise<void> {
+  try {
+    // 1. Cập nhật app_workspace với dữ liệu mới nhất
+    await supabase.from('app_workspace').upsert({
+      id: 'main_workspace',
+      data: updatedData,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+
+    // 2. Xóa khỏi các bảng quan hệ trên Supabase
+    await Promise.allSettled([
+      supabase.from('classes').delete().eq('id', classId),
+      supabase.from('students').delete().eq('class_id', classId),
+      supabase.from('lessons').delete().eq('class_id', classId),
+      supabase.from('learning_tasks').delete().eq('class_id', classId),
+      supabase.from('grade_entries').delete().eq('class_id', classId),
+      supabase.from('student_comments').delete().eq('class_id', classId),
+    ]);
+  } catch (err) {
+    console.warn('Lỗi khi xóa lớp trên Supabase:', err);
+  }
+}
+
+/**
+ * Xóa học sinh và điểm số liên quan trực tiếp khỏi Supabase
+ */
+export async function deleteStudentFromSupabase(studentId: string, updatedData: AppData): Promise<void> {
+  try {
+    await supabase.from('app_workspace').upsert({
+      id: 'main_workspace',
+      data: updatedData,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+
+    await Promise.allSettled([
+      supabase.from('students').delete().eq('id', studentId),
+      supabase.from('grade_entries').delete().eq('student_id', studentId),
+      supabase.from('student_comments').delete().eq('student_id', studentId),
+    ]);
+  } catch (err) {
+    console.warn('Lỗi khi xóa học sinh trên Supabase:', err);
+  }
+}
+

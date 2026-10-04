@@ -25,6 +25,9 @@ import {
 import {
   checkSupabaseStatus,
   syncAppDataToSupabase,
+  loadAppDataFromSupabase,
+  deleteClassFromSupabase,
+  deleteStudentFromSupabase,
   SupabaseStatusResult,
 } from './services/supabase';
 
@@ -80,7 +83,7 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(() => {
-    return localStorage.getItem('supabase_autosync_enabled') === 'true';
+    return localStorage.getItem('supabase_autosync_enabled') !== 'false';
   });
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseStatusResult>({
     status: 'checking',
@@ -89,11 +92,27 @@ export default function App() {
     hasRelationalTables: false,
   });
 
-  // Check Supabase status on load
+  const hasInitializedFromSupabase = React.useRef(false);
+
+  // Check Supabase status on load and sync if available
   const refreshSupabaseStatus = useCallback(async () => {
     try {
       const res = await checkSupabaseStatus();
       setSupabaseStatus(res);
+      if (res.status === 'ready' && !hasInitializedFromSupabase.current) {
+        hasInitializedFromSupabase.current = true;
+        const remote = await loadAppDataFromSupabase();
+        if (remote.success && remote.data && remote.data.classes.length > 0) {
+          setData(remote.data);
+          saveAppData(remote.data);
+        } else {
+          // Supabase đã sẵn sàng nhưng chưa có dữ liệu, tự động đẩy dữ liệu sạch hiện tại lên
+          setData((current) => {
+            syncAppDataToSupabase(current);
+            return current;
+          });
+        }
+      }
     } catch {
       setSupabaseStatus({
         status: 'error',
@@ -247,19 +266,23 @@ export default function App() {
       message: `Thầy có chắc chắn muốn xóa lớp ${cls?.name || ''}? Dữ liệu học sinh, bài học, nhiệm vụ, điểm số và nhận xét liên quan đến lớp này sẽ được dọn dẹp tương ứng.`,
       isDestructive: true,
       onConfirm: () => {
-        setData((prev) => {
-          const updated = {
-            ...prev,
-            classes: prev.classes.filter((c) => c.id !== classId),
-            students: prev.students.filter((s) => s.classId !== classId),
-            lessons: prev.lessons.filter((l) => l.classId !== classId),
-            tasks: prev.tasks.filter((t) => t.classId !== classId),
-            grades: prev.grades.filter((g) => g.classId !== classId),
-            comments: prev.comments.filter((cm) => cm.classId !== classId),
-          };
-          return recordActivity(updated, 'class', `Đã xóa lớp ${cls?.name || classId}`);
-        });
-        notify('info', 'Đã xóa lớp học', `Lớp ${cls?.name || ''} đã được loại bỏ.`);
+        const updated = {
+          ...data,
+          classes: data.classes.filter((c) => c.id !== classId),
+          students: data.students.filter((s) => s.classId !== classId),
+          lessons: data.lessons.filter((l) => l.classId !== classId),
+          tasks: data.tasks.filter((t) => t.classId !== classId),
+          grades: data.grades.filter((g) => g.classId !== classId),
+          comments: data.comments.filter((cm) => cm.classId !== classId),
+        };
+        const finalData = recordActivity(updated, 'class', `Đã xóa lớp ${cls?.name || classId}`);
+        // 1. Cập nhật state UI
+        setData(finalData);
+        // 2. Lưu NGAY LẬP TỨC vào localStorage (tránh mất khi tải lại trang)
+        saveAppData(finalData);
+        // 3. Xóa NGAY LẬP TỨC khỏi cơ sở dữ liệu Supabase
+        deleteClassFromSupabase(classId, finalData);
+        notify('info', 'Đã xóa lớp học', `Lớp ${cls?.name || ''} đã được loại bỏ vĩnh viễn.`);
       },
     });
   };
@@ -332,19 +355,20 @@ export default function App() {
       message: `Thầy có muốn xóa học sinh ${st?.fullName || ''} (${st?.studentCode}) khỏi danh sách lớp không?`,
       isDestructive: true,
       onConfirm: () => {
-        setData((prev) => {
-          const updated = {
-            ...prev,
-            students: prev.students.filter((s) => s.id !== studentId),
-            grades: prev.grades.filter((g) => g.studentId !== studentId),
-            comments: prev.comments.filter((c) => c.studentId !== studentId),
-          };
-          return recordActivity(
-            updated,
-            'student',
-            `Đã xóa học sinh ${st?.fullName || studentId}`
-          );
-        });
+        const updated = {
+          ...data,
+          students: data.students.filter((s) => s.id !== studentId),
+          grades: data.grades.filter((g) => g.studentId !== studentId),
+          comments: data.comments.filter((c) => c.studentId !== studentId),
+        };
+        const finalData = recordActivity(
+          updated,
+          'student',
+          `Đã xóa học sinh ${st?.fullName || studentId}`
+        );
+        setData(finalData);
+        saveAppData(finalData);
+        deleteStudentFromSupabase(studentId, finalData);
         notify('info', 'Đã xóa học sinh', `Học sinh ${st?.fullName || ''} đã được xóa.`);
       },
     });
@@ -384,13 +408,13 @@ export default function App() {
       message: `Thầy có chắc chắn muốn xóa bài học "${l?.title || ''}"?`,
       isDestructive: true,
       onConfirm: () => {
-        setData((prev) => {
-          const updated = {
-            ...prev,
-            lessons: prev.lessons.filter((item) => item.id !== lessonId),
-          };
-          return recordActivity(updated, 'lesson', `Đã xóa bài học ${l?.title || lessonId}`);
-        });
+        const updated = {
+          ...data,
+          lessons: data.lessons.filter((item) => item.id !== lessonId),
+        };
+        const finalData = recordActivity(updated, 'lesson', `Đã xóa bài học ${l?.title || lessonId}`);
+        setData(finalData);
+        saveAppData(finalData);
         notify('info', 'Đã xóa bài học', `Bài dạy "${l?.title || ''}" đã được xóa.`);
       },
     });
@@ -430,13 +454,13 @@ export default function App() {
       message: `Thầy có chắc chắn muốn xóa nhiệm vụ "${t?.title || ''}"?`,
       isDestructive: true,
       onConfirm: () => {
-        setData((prev) => {
-          const updated = {
-            ...prev,
-            tasks: prev.tasks.filter((task) => task.id !== taskId),
-          };
-          return recordActivity(updated, 'task', `Đã xóa nhiệm vụ: ${t?.title || taskId}`);
-        });
+        const updated = {
+          ...data,
+          tasks: data.tasks.filter((task) => task.id !== taskId),
+        };
+        const finalData = recordActivity(updated, 'task', `Đã xóa nhiệm vụ: ${t?.title || taskId}`);
+        setData(finalData);
+        saveAppData(finalData);
         notify('info', 'Đã xóa nhiệm vụ', `Nhiệm vụ "${t?.title || ''}" đã xóa.`);
       },
     });
@@ -494,13 +518,13 @@ export default function App() {
       message: 'Thầy có muốn xóa cột điểm kiểm tra này khỏi hệ thống?',
       isDestructive: true,
       onConfirm: () => {
-        setData((prev) => {
-          const updated = {
-            ...prev,
-            grades: prev.grades.filter((g) => g.id !== gradeId),
-          };
-          return recordActivity(updated, 'grade', 'Đã xóa một kết quả kiểm tra');
-        });
+        const updated = {
+          ...data,
+          grades: data.grades.filter((g) => g.id !== gradeId),
+        };
+        const finalData = recordActivity(updated, 'grade', 'Đã xóa một kết quả kiểm tra');
+        setData(finalData);
+        saveAppData(finalData);
         notify('info', 'Đã xóa điểm', 'Cột điểm đã được loại bỏ.');
       },
     });
@@ -544,13 +568,13 @@ export default function App() {
       message: 'Thầy có chắc chắn muốn xóa nhận xét này?',
       isDestructive: true,
       onConfirm: () => {
-        setData((prev) => {
-          const updated = {
-            ...prev,
-            comments: prev.comments.filter((c) => c.id !== commentId),
-          };
-          return recordActivity(updated, 'comment', 'Đã xóa một nhận xét học sinh');
-        });
+        const updated = {
+          ...data,
+          comments: data.comments.filter((c) => c.id !== commentId),
+        };
+        const finalData = recordActivity(updated, 'comment', 'Đã xóa một nhận xét học sinh');
+        setData(finalData);
+        saveAppData(finalData);
         notify('info', 'Đã xóa nhận xét', 'Nhận xét đã được loại bỏ.');
       },
     });

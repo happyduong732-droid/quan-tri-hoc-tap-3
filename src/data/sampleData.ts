@@ -9,14 +9,6 @@ import { AppData, ClassItem, Student, Lesson, LearningTask, GradeEntry, StudentC
 
 export const initialClasses: ClassItem[] = [
   {
-    id: 'c-6a1',
-    name: '6A1',
-    gradeLevel: 6,
-    room: 'Phòng 201',
-    academicYear: '2025-2026',
-    note: 'Lớp sôi nổi, hào hứng với hoạt động kể chuyện và đọc diễn cảm'
-  },
-  {
     id: 'c-7a1',
     name: '7A1',
     gradeLevel: 7,
@@ -43,14 +35,6 @@ export const initialClasses: ClassItem[] = [
 ];
 
 export const initialStudents: Student[] = [
-  // Lớp 6A1
-  { id: 's-601', studentCode: 'HS0601', fullName: 'Nguyễn Hoàng Nam', classId: 'c-6a1', gender: 'Nam', status: 'Đang học', note: 'Chăm chú nghe giảng, đọc diễn cảm tốt' },
-  { id: 's-602', studentCode: 'HS0602', fullName: 'Trần Thị Mai Anh', classId: 'c-6a1', gender: 'Nữ', status: 'Đang học', note: 'Chữ viết đẹp, bài văn giàu cảm xúc' },
-  { id: 's-603', studentCode: 'HS0603', fullName: 'Lê Minh Đức', classId: 'c-6a1', gender: 'Nam', status: 'Đang học', note: 'Cần rèn thêm chính tả và dấu câu', needAttention: true },
-  { id: 's-604', studentCode: 'HS0604', fullName: 'Phạm Thuỳ Linh', classId: 'c-6a1', gender: 'Nữ', status: 'Đang học', note: 'Tích cực phát biểu xây dựng bài học' },
-  { id: 's-605', studentCode: 'HS0605', fullName: 'Đỗ Quang Huy', classId: 'c-6a1', gender: 'Nam', status: 'Đang học', note: 'Cần nộp bài tập đúng hạn hơn', needAttention: true },
-  { id: 's-606', studentCode: 'HS0606', fullName: 'Vũ Ngọc Bảo Trâm', classId: 'c-6a1', gender: 'Nữ', status: 'Đang học', note: 'Có năng khiếu kể chuyện và đóng vai nhân vật' },
-
   // Lớp 7A1
   { id: 's-701', studentCode: 'HS0701', fullName: 'Hoàng Quốc Tuấn', classId: 'c-7a1', gender: 'Nam', status: 'Đang học', note: 'Viết mở bài ấn tượng, lập dàn ý khoa học' },
   { id: 's-702', studentCode: 'HS0702', fullName: 'Bùi Thanh Hằng', classId: 'c-7a1', gender: 'Nữ', status: 'Đang học', note: 'Yêu thích thơ lục bát và ca dao' },
@@ -74,26 +58,6 @@ export const initialStudents: Student[] = [
 ];
 
 export const initialLessons: Lesson[] = [
-  {
-    id: 'l-01',
-    title: 'Thực hành Tiếng Việt: Nghĩa của từ và biện pháp tu từ so sánh',
-    classId: 'c-6a1',
-    topic: 'Chủ đề: Lắng nghe lịch sử nước mình',
-    objectives: 'Nhận biết từ đa nghĩa, phân tích tác dụng gợi hình gợi cảm của biện pháp so sánh trong ngữ cảnh cụ thể.',
-    summary: 'Phân biệt nghĩa gốc và nghĩa chuyển; luyện tập đặt câu có hình ảnh so sánh sinh động.',
-    teachDate: '2026-09-18',
-    status: 'Đang dạy'
-  },
-  {
-    id: 'l-02',
-    title: 'Viết đoạn văn ghi lại cảm xúc về một bài thơ lục bát',
-    classId: 'c-6a1',
-    topic: 'Chủ đề: Yêu thương và chia sẻ',
-    objectives: 'Nắm chắc cấu trúc đoạn văn diễn dịch/quy nạp; thể hiện cảm xúc chân thực về tình cảm gia đình.',
-    summary: 'Hướng dẫn các bước lập dàn ý, chọn lọc chi tiết và từ ngữ biểu cảm.',
-    teachDate: '2026-09-22',
-    status: 'Chưa dạy'
-  },
   {
     id: 'l-03',
     title: 'Đặc điểm của thể thơ bốn chữ, năm chữ và nhịp thơ',
@@ -148,28 +112,6 @@ export const initialLessons: Lesson[] = [
 
 export const initialTasks: LearningTask[] = [
   {
-    id: 't-01',
-    title: 'Tìm 3 ví dụ về biện pháp so sánh trong văn bản đã học',
-    classId: 'c-6a1',
-    lessonId: 'l-01',
-    description: 'Chỉ rõ vế A, vế B, từ so sánh và nêu ngắn gọn tác dụng của từng hình ảnh so sánh.',
-    dueDate: '2026-09-19',
-    priority: 'Bình thường',
-    status: 'Đang thực hiện',
-    completedStudentIds: ['s-601', 's-602', 's-604', 's-606']
-  },
-  {
-    id: 't-02',
-    title: 'Viết đoạn văn ngắn 5-7 câu nêu cảm nghĩ về nhân vật',
-    classId: 'c-6a1',
-    lessonId: 'l-01',
-    description: 'Chú ý dung lượng đoạn văn, không mắc lỗi chính tả và có sử dụng ít nhất một câu cảm thán.',
-    dueDate: '2026-09-20',
-    priority: 'Quan trọng',
-    status: 'Đã giao',
-    completedStudentIds: ['s-602', 's-604']
-  },
-  {
     id: 't-03',
     title: 'Chuẩn bị dàn ý bài nói thuyết trình 3 phút',
     classId: 'c-7a1',
@@ -216,14 +158,6 @@ export const initialTasks: LearningTask[] = [
 ];
 
 export const initialGrades: GradeEntry[] = [
-  // Lớp 6A1
-  { id: 'g-01', studentId: 's-601', classId: 'c-6a1', activityTitle: 'Kiểm tra đọc hiểu văn bản', score: 8.5, date: '2026-09-15', note: 'Trả lời đủ ý, trình bày sạch sẽ' },
-  { id: 'g-02', studentId: 's-602', classId: 'c-6a1', activityTitle: 'Kiểm tra đọc hiểu văn bản', score: 9.0, date: '2026-09-15', note: 'Cảm thụ tinh tế, diễn đạt giàu hình ảnh' },
-  { id: 'g-03', studentId: 's-603', classId: 'c-6a1', activityTitle: 'Kiểm tra đọc hiểu văn bản', score: 6.0, date: '2026-09-15', note: 'Chưa trả lời hết câu hỏi số 3' },
-  { id: 'g-04', studentId: 's-604', classId: 'c-6a1', activityTitle: 'Kiểm tra đọc hiểu văn bản', score: 8.0, date: '2026-09-15', note: 'Nắm chắc kiến thức cơ bản' },
-  { id: 'g-05', studentId: 's-605', classId: 'c-6a1', activityTitle: 'Kiểm tra đọc hiểu văn bản', score: 5.5, date: '2026-09-15', note: 'Cần chú ý cẩn thận khi đọc yêu cầu đề' },
-  { id: 'g-06', studentId: 's-606', classId: 'c-6a1', activityTitle: 'Kiểm tra đọc hiểu văn bản', score: 8.5, date: '2026-09-15', note: 'Lời văn mạch lạc, tự nhiên' },
-
   // Lớp 7A1
   { id: 'g-07', studentId: 's-701', classId: 'c-7a1', activityTitle: 'Bài viết đoạn văn cảm thụ', score: 8.0, date: '2026-09-14', note: 'Dẫn chứng thơ hợp lý' },
   { id: 'g-08', studentId: 's-702', classId: 'c-7a1', activityTitle: 'Bài viết đoạn văn cảm thụ', score: 8.5, date: '2026-09-14', note: 'Cảm xúc mượt mà, sâu lắng' },
@@ -247,24 +181,6 @@ export const initialGrades: GradeEntry[] = [
 ];
 
 export const initialComments: StudentComment[] = [
-  {
-    id: 'cm-01',
-    studentId: 's-601',
-    classId: 'c-6a1',
-    date: '2026-09-16',
-    content: 'Đọc diễn cảm rất truyền cảm, giọng to rõ, biết nhấn giọng đúng trọng tâm bài văn.',
-    skillCategory: 'Nói & Nghe',
-    note: 'Đề xuất cử tham gia nhóm đọc mẫu của khối 6'
-  },
-  {
-    id: 'cm-02',
-    studentId: 's-603',
-    classId: 'c-6a1',
-    date: '2026-09-17',
-    content: 'Em nắm được ý chính nhưng tốc độ ghi bài còn chậm, đôi chỗ viết tắt chưa chuẩn.',
-    skillCategory: 'Viết bài',
-    note: 'Thầy đã nhắc nhở ngồi gần bàn đầu để quan sát bảng tốt hơn'
-  },
   {
     id: 'cm-03',
     studentId: 's-704',
